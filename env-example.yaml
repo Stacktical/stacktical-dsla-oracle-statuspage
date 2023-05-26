@@ -1,0 +1,16 @@
+IPFS_URI="https://ipfs.localhost"
+IPFS_GATEWAY_URI="https://ipfs.localhost"
+DEVELOP_IPFS_URI="https://ipfs.localhost"
+DEVELOP_URI="http://localhost:8545"
+ETHEREUM_URI="http://localhost:1234"
+ETHEREUMV2_URI="http://localhost:1234"
+POLYGON_URI="http://localhost:1234"
+POLYGONV2_URI="http://localhost:1234"
+AVALANCHE_URI="http://localhost:1234"
+AVALANCHEV2_URI="http://localhost:1234"
+ARBITRUM_URI="http://localhost:1234"
+ARBITRUMV2_URI="http://localhost:1234"
+OPTIMISM_URI="http://localhost:1234"
+
+## API Keys
+STATUSPAGE_API_KEY="Your_API_Key"

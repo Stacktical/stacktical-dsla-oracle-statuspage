@@ -1,0 +1,13 @@
+name: DSLA Protocol's OpenAI StatusPage Service Level Agreement (SLA)
+description: An OpenAI Public StatusPage Chainlink external adapter for DSLA Protocol.
+node_identifier: dsla-oracle-statuspage
+platforms:
+  - GCP Functions
+data_sources:
+  - name: StatusPage
+    url: https://status.openai.com/api/v2
+parameters:
+  - sla_address
+  - network_name
+  - period_start
+  - period_end
