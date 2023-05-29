@@ -12,5 +12,5 @@ ARBITRUM_URI="http://localhost:1234"
 ARBITRUMV2_URI="http://localhost:1234"
 OPTIMISM_URI="http://localhost:1234"
 
-## API Keys
+## API Key
 STATUSPAGE_API_KEY="Your_API_Key"
