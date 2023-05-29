@@ -50,10 +50,10 @@ exports.__esModule = true;
 require('dotenv').config();
 var Joi = require("joi");
 var constants_1 = require("./constants");
-var express = require("express");
 var axios_1 = require("axios");
 var web3_1 = require("web3");
 var abis_1 = require("./abis");
+// console.log(process.env);
 var networksObject = Object.keys(constants_1.NETWORKS).reduce(function (r, networkName) {
     var _a;
     return (__assign(__assign({}, r), (_a = {}, _a["".concat(networkName.toUpperCase(), "_URI")] = Joi.string().uri().required(), _a)));
@@ -65,12 +65,15 @@ if (error) {
 }
 function getSLAData(address, networkName) {
     return __awaiter(this, void 0, void 0, function () {
-        var web3, slaContract, ipfsCID, periodType, messengerAddress, data;
+        var networkURI, web3, slaContract, ipfsCID, periodType, messengerAddress, data;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    console.log("networkName: ".concat(networkName)); // Add this line
-                    web3 = new web3_1["default"](process.env["".concat(networkName.toUpperCase(), "_URI")]);
+                    networkURI = constants_1.NETWORKS[networkName];
+                    if (!networkURI) {
+                        throw new Error("No network URI found for network: ".concat(networkName));
+                    }
+                    web3 = new web3_1["default"](networkURI);
                     slaContract = new web3.eth.Contract(abis_1.SLAABI, address);
                     return [4 /*yield*/, slaContract.methods.ipfsHash().call()];
                 case 1:
@@ -91,12 +94,15 @@ function getSLAData(address, networkName) {
 }
 function getMessengerPrecision(messengerAddress, networkName) {
     return __awaiter(this, void 0, void 0, function () {
-        var web3, messenger;
+        var networkURI, web3, messenger;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    console.log("networkName: ".concat(networkName)); // Add this line
-                    web3 = new web3_1["default"](process.env["".concat(networkName.toUpperCase(), "_URI")]);
+                    networkURI = constants_1.NETWORKS[networkName];
+                    if (!networkURI) {
+                        throw new Error("No network URI found for network: ".concat(networkName));
+                    }
+                    web3 = new web3_1["default"](networkURI);
                     messenger = new web3.eth.Contract(abis_1.MessengerABI, messengerAddress);
                     return [4 /*yield*/, messenger.methods.messengerPrecision().call()];
                 case 1: return [2 /*return*/, _a.sent()];
@@ -104,8 +110,6 @@ function getMessengerPrecision(messengerAddress, networkName) {
         });
     });
 }
-var app = express();
-app.use(express.json());
 var STATUSPAGE_API_BASE = 'https://status.openai.com/api/v2';
 function calculateServiceQualityPercentage(incidents, periodStart, periodEnd, precision) {
     if (!Array.isArray(incidents)) {
@@ -125,13 +129,13 @@ function calculateServiceQualityPercentage(incidents, periodStart, periodEnd, pr
     var serviceQualityPercentage = (((totalMinutes - totalDowntimeMinutes) / totalMinutes) * 100) * precision;
     return serviceQualityPercentage;
 }
-app.post('/', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var data, periodStart, periodEnd, slaAddress, networkName, requestData, slaData, messengerPrecision, incidentsResponse, incidentsData, incidents, serviceQualityPercentage, error_1;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
+exports['dsla-oracle-statuspage'] = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var _a, id, data, periodStart, periodEnd, slaAddress, networkName, requestData, slaData, messengerPrecision, incidentsResponse, incidentsData, incidents, serviceQualityPercentage, error_1;
+    return __generator(this, function (_b) {
+        switch (_b.label) {
             case 0:
-                _a.trys.push([0, 4, , 5]);
-                data = req.body.data;
+                _b.trys.push([0, 4, , 5]);
+                _a = req.body, id = _a.id, data = _a.data;
                 periodStart = data.period_start, periodEnd = data.period_end, slaAddress = data.address, networkName = data.network_name;
                 // Log entire request body
                 console.log('Request body:', req.body);
@@ -142,39 +146,41 @@ app.post('/', function (req, res) { return __awaiter(void 0, void 0, void 0, fun
                     periodEndDate: new Date(Number(periodEnd) * 1000).toLocaleString()
                 });
                 requestData = {
-                    sla_address: data.sla_address,
-                    network_name: data.network_name,
-                    sla_monitoring_start: data.sla_monitoring_start,
-                    sla_monitoring_end: data.sla_monitoring_end
+                    sla_address: slaAddress,
+                    network_name: networkName,
+                    sla_monitoring_start: periodStart,
+                    sla_monitoring_end: periodEnd
                 };
                 return [4 /*yield*/, getSLAData(requestData.sla_address, requestData.network_name)];
             case 1:
-                slaData = _a.sent();
+                slaData = _b.sent();
                 return [4 /*yield*/, getMessengerPrecision(slaData.messengerAddress, requestData.network_name)];
             case 2:
-                messengerPrecision = _a.sent();
+                messengerPrecision = _b.sent();
                 return [4 /*yield*/, axios_1["default"].get("".concat(STATUSPAGE_API_BASE, "/incidents.json"))];
             case 3:
-                incidentsResponse = _a.sent();
+                incidentsResponse = _b.sent();
                 incidentsData = incidentsResponse.data;
                 if (!incidentsData || incidentsResponse.status !== 200) {
                     throw new Error('Failed to fetch incidents data');
                 }
                 incidents = incidentsData.incidents;
-                serviceQualityPercentage = calculateServiceQualityPercentage(incidents, parseInt(periodStart) * 1000, parseInt(periodEnd) * 1000, messengerPrecision);
-                res.status(200).json({ data: { result: serviceQualityPercentage } });
+                serviceQualityPercentage = calculateServiceQualityPercentage(incidents, periodStart * 1000, periodEnd * 1000, messengerPrecision);
+                res.send({
+                    jobRunID: req.body.id,
+                    data: { result: serviceQualityPercentage }
+                });
                 return [3 /*break*/, 5];
             case 4:
-                error_1 = _a.sent();
+                error_1 = _b.sent();
                 console.error('Error:', error_1.message);
-                res.status(500).json({ error: error_1.message });
+                res.send({
+                    jobRunID: req.body.id,
+                    data: { result: null },
+                    error: error_1.message
+                });
                 return [3 /*break*/, 5];
             case 5: return [2 /*return*/];
         }
     });
-}); });
-var HOST = process.env.HOST || '0.0.0.0';
-var PORT = Number(process.env.PORT) || 6070;
-app.listen(PORT, HOST, function () {
-    console.log("Server is running on port ".concat(PORT));
-});
+}); };

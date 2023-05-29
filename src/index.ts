@@ -1,12 +1,12 @@
 require('dotenv').config();
 import * as Joi from 'joi';
 import { NETWORKS } from './constants';
-import express from 'express';
-import { Request, Response } from 'express';
 import axios from 'axios';
 import Web3 from 'web3';
 import { AbiItem } from 'web3-utils';
 import { SLAABI, MessengerABI } from './abis';
+
+// console.log(process.env);
 
 const networksObject = Object.keys(NETWORKS).reduce(
   (r, networkName) => ({
@@ -27,6 +27,8 @@ if (error) {
   throw new Error(`Configuration error: ${error.message}`);
 }
 
+type NetworkName = keyof typeof NETWORKS;
+
 type SLAData = {
   serviceName: string;
   serviceDescription: string;
@@ -41,11 +43,12 @@ type SLAData = {
 };
 
 async function getSLAData(address: string, networkName: string): Promise<SLAData> {
-  //  console.log(`networkName: ${networkName}`); // Add this line
-  //  const web3 = new Web3(process.env[`${networkName.toUpperCase()}_URI`]);
-  const uri = process.env[`${networkName.toUpperCase()}_URI`];
-  console.log(`URI for network ${networkName}: ${uri}`); // Add this line
-  const web3 = new Web3(uri);
+  const networkURI = NETWORKS[networkName as NetworkName];
+  if (!networkURI) {
+    throw new Error(`No network URI found for network: ${networkName}`);
+  }
+  const web3 = new Web3(networkURI);
+
   const slaContract = new web3.eth.Contract(SLAABI as AbiItem[], address);
   const ipfsCID = await slaContract.methods.ipfsHash().call();
   const periodType = await slaContract.methods.periodType().call();
@@ -55,18 +58,15 @@ async function getSLAData(address: string, networkName: string): Promise<SLAData
 }
 
 async function getMessengerPrecision(messengerAddress: string, networkName: string): Promise<number> {
-  //  console.log(`networkName: ${networkName}`); // Add this line
-  //  const web3 = new Web3(process.env[`${networkName.toUpperCase()}_URI`]);
-  const uri = process.env[`${networkName.toUpperCase()}_URI`];
-  console.log(`URI for network ${networkName}: ${uri}`); // Add this line
-  const web3 = new Web3(uri);
+  const networkURI = NETWORKS[networkName as NetworkName];
+  if (!networkURI) {
+    throw new Error(`No network URI found for network: ${networkName}`);
+  }
+  const web3 = new Web3(networkURI);
+
   const messenger = new web3.eth.Contract(MessengerABI as AbiItem[], messengerAddress);
   return await messenger.methods.messengerPrecision().call();
 }
-
-
-const app = express();
-app.use(express.json());
 
 const STATUSPAGE_API_BASE = 'https://status.openai.com/api/v2';
 
@@ -98,10 +98,22 @@ function calculateServiceQualityPercentage(
   return serviceQualityPercentage;
 }
 
-
-app.post('/', async (req: Request, res: Response) => {
+exports['dsla-oracle-statuspage'] = async (
+  req: {
+    body: {
+      id: number;
+      data: {
+        period_start: number;
+        period_end: number;
+        address: string;
+        network_name: string;
+      };
+    };
+  },
+  res: any
+) => {
   try {
-    const { data } = req.body;
+    const { id, data } = req.body;
     const { period_start: periodStart, period_end: periodEnd, address: slaAddress, network_name: networkName } = data;
 
     // Log entire request body
@@ -115,11 +127,12 @@ app.post('/', async (req: Request, res: Response) => {
     });
 
     const requestData = {
-      sla_address: data.sla_address,
-      network_name: data.network_name,
-      sla_monitoring_start: data.sla_monitoring_start,
-      sla_monitoring_end: data.sla_monitoring_end,
+      sla_address: slaAddress,
+      network_name: networkName,
+      sla_monitoring_start: periodStart,
+      sla_monitoring_end: periodEnd,
     };
+
     const slaData = await getSLAData(requestData.sla_address, requestData.network_name);
 
     const messengerPrecision = await getMessengerPrecision(slaData.messengerAddress, requestData.network_name);
@@ -131,21 +144,19 @@ app.post('/', async (req: Request, res: Response) => {
       throw new Error('Failed to fetch incidents data');
     }
 
-    // console.log('Incidents data:', incidentsData);
-
     const incidents = incidentsData.incidents;
-    //const serviceQualityPercentage = calculateServiceQualityPercentage(incidents, periodStart, periodEnd);
-    const serviceQualityPercentage = calculateServiceQualityPercentage(incidents, parseInt(periodStart) * 1000, parseInt(periodEnd) * 1000, messengerPrecision);
-    res.status(200).json({ data: { result: serviceQualityPercentage } });
+    const serviceQualityPercentage = calculateServiceQualityPercentage(incidents, periodStart * 1000, periodEnd * 1000, messengerPrecision);
+
+    res.send({
+      jobRunID: req.body.id,
+      data: { result: serviceQualityPercentage },
+    });
   } catch (error: any) {
     console.error('Error:', error.message);
-    res.status(500).json({ error: error.message });
+    res.send({
+      jobRunID: req.body.id,
+      data: { result: null },
+      error: error.message,
+    });
   }
-});
-
-const HOST = process.env.HOST || '0.0.0.0';
-const PORT = Number(process.env.PORT) || 6070;
-
-app.listen(PORT, HOST, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+};

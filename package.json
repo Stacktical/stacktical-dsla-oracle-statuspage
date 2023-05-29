@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "DEBUG=develop NODE_ENV=development concurrently \"tsc -w\" \"nodemon --watch ./build/ --exec npm run start\"",
-    "start": "npx functions-framework --source=build/src/ --target=stacktical-dsla-oracle-statuspage --port 6060",
+    "start": "npx functions-framework --source=build/src/ --target=dsla-oracle-statuspage --port 6060",
     "release:patch": "standard-version --release-as patch",
     "release:minor": "standard-version --release-as minor",
     "release:major": "standard-version --release-as major",
@@ -19,14 +19,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/stacktical/stacktical-dsla-oracle-statuspage.git"
+    "url": "git+https://github.com/darrylhansen/stacktical-dsla-oracle-statuspage.git"
   },
   "author": "",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/stacktical/stacktical-dsla-oracle-statuspage/issues"
+    "url": "https://github.com/darrylhansen/stacktical-dsla-oracle-statuspage/issues"
   },
-  "homepage": "https://github.com/stacktical/stacktical-dsla-oracle-statuspage#readme",
+  "homepage": "https://github.com/darrylhansen/stacktical-dsla-oracle-statuspage#readme",
   "keywords": [
     "openai",
     "dsla",

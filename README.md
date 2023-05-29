@@ -28,7 +28,7 @@ npm install --save-dev @google-cloud/functions-framework
 Generate `.env.yaml` from the `.env` file, then:
 
 ```
-gcloud functions deploy dsla-oracle-travel \
+gcloud functions deploy dsla-oracle-statuspage \
     --region=your-reguib--source=. \
     --trigger-http --allow-unauthenticated \
     --runtime=nodejs16 --env-vars-file=./.env.yaml \
