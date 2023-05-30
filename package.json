@@ -19,14 +19,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/darrylhansen/stacktical-dsla-oracle-statuspage.git"
+    "url": "git+https://github.com/stacktical/stacktical-dsla-oracle-statuspage.git"
   },
   "author": "",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/darrylhansen/stacktical-dsla-oracle-statuspage/issues"
+    "url": "https://github.com/stacktical/stacktical-dsla-oracle-statuspage/issues"
   },
-  "homepage": "https://github.com/darrylhansen/stacktical-dsla-oracle-statuspage#readme",
+  "homepage": "https://github.com/stacktical/stacktical-dsla-oracle-statuspage#readme",
   "keywords": [
     "openai",
     "dsla",
