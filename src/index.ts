@@ -29,6 +29,8 @@ if (error) {
 
 type NetworkName = keyof typeof NETWORKS;
 
+const impacts = ['minor', 'major', 'critical'];
+
 type SLAData = {
   serviceName: string;
   serviceDescription: string;
@@ -40,6 +42,9 @@ type SLAData = {
   serviceSliMockingPlan: Array<number>;
   periodType: number;
   messengerAddress: string;
+  statusPageUrl: string;
+  component: string[];
+  impactCutoff: string;
 };
 
 async function getSLAData(address: string, networkName: string): Promise<SLAData> {
@@ -68,22 +73,29 @@ async function getMessengerPrecision(messengerAddress: string, networkName: stri
   return await messenger.methods.messengerPrecision().call();
 }
 
-const STATUSPAGE_API_BASE = 'https://status.openai.com/api/v2';
-
 function calculateServiceQualityPercentage(
   incidents: any[],
   periodStart: number,
   periodEnd: number,
-  precision: number
+  precision: number,
+  component: string[],
+  impactCutoff: string
 ): number {
   if (!Array.isArray(incidents)) {
     throw new Error('Incidents data is not an array');
   }
 
   let totalDowntimeMinutes = 0;
+  const minImpactIndex = impacts.indexOf(impactCutoff);
 
   incidents.forEach((incident) => {
-    if (incident.impact !== 'none') {
+    const isComponentInvolved = incident.components.some((comp: any) =>
+      component.map(c => c.toLowerCase()).includes(comp.name.toLowerCase())
+    );
+
+    const incidentImpactIndex = impacts.indexOf(incident.impact);
+
+    if (isComponentInvolved && incidentImpactIndex >= minImpactIndex) {
       const incidentStart = Date.parse(incident.created_at);
       const incidentEnd = Date.parse(incident.resolved_at);
 
@@ -137,7 +149,7 @@ exports['dsla-oracle-statuspage'] = async (
 
     const messengerPrecision = await getMessengerPrecision(slaData.messengerAddress, requestData.network_name);
 
-    const incidentsResponse = await axios.get(`${STATUSPAGE_API_BASE}/incidents.json`);
+    const incidentsResponse = await axios.get(`${slaData.statusPageUrl}/incidents.json`);
     const incidentsData = incidentsResponse.data;
 
     if (!incidentsData || incidentsResponse.status !== 200) {
@@ -145,7 +157,7 @@ exports['dsla-oracle-statuspage'] = async (
     }
 
     const incidents = incidentsData.incidents;
-    const serviceQualityPercentage = calculateServiceQualityPercentage(incidents, periodStart * 1000, periodEnd * 1000, messengerPrecision);
+    const serviceQualityPercentage = calculateServiceQualityPercentage(incidents, periodStart * 1000, periodEnd * 1000, messengerPrecision, slaData.component, slaData.impactCutoff);
 
     res.send({
       jobRunID: req.body.id,

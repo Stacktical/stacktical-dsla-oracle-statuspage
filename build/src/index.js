@@ -63,6 +63,7 @@ var error = schema.validate(process.env).error;
 if (error) {
     throw new Error("Configuration error: ".concat(error.message));
 }
+var impacts = ['minor', 'major', 'critical'];
 function getSLAData(address, networkName) {
     return __awaiter(this, void 0, void 0, function () {
         var networkURI, web3, slaContract, ipfsCID, periodType, messengerAddress, data;
@@ -110,14 +111,18 @@ function getMessengerPrecision(messengerAddress, networkName) {
         });
     });
 }
-var STATUSPAGE_API_BASE = 'https://status.openai.com/api/v2';
-function calculateServiceQualityPercentage(incidents, periodStart, periodEnd, precision) {
+function calculateServiceQualityPercentage(incidents, periodStart, periodEnd, precision, component, impactCutoff) {
     if (!Array.isArray(incidents)) {
         throw new Error('Incidents data is not an array');
     }
     var totalDowntimeMinutes = 0;
+    var minImpactIndex = impacts.indexOf(impactCutoff);
     incidents.forEach(function (incident) {
-        if (incident.impact !== 'none') {
+        var isComponentInvolved = incident.components.some(function (comp) {
+            return component.map(function (c) { return c.toLowerCase(); }).includes(comp.name.toLowerCase());
+        });
+        var incidentImpactIndex = impacts.indexOf(incident.impact);
+        if (isComponentInvolved && incidentImpactIndex >= minImpactIndex) {
             var incidentStart = Date.parse(incident.created_at);
             var incidentEnd = Date.parse(incident.resolved_at);
             if (incidentStart >= periodStart && incidentEnd <= periodEnd) {
@@ -157,7 +162,7 @@ exports['dsla-oracle-statuspage'] = function (req, res) { return __awaiter(void 
                 return [4 /*yield*/, getMessengerPrecision(slaData.messengerAddress, requestData.network_name)];
             case 2:
                 messengerPrecision = _b.sent();
-                return [4 /*yield*/, axios_1["default"].get("".concat(STATUSPAGE_API_BASE, "/incidents.json"))];
+                return [4 /*yield*/, axios_1["default"].get("".concat(slaData.statusPageUrl, "/incidents.json"))];
             case 3:
                 incidentsResponse = _b.sent();
                 incidentsData = incidentsResponse.data;
@@ -165,7 +170,7 @@ exports['dsla-oracle-statuspage'] = function (req, res) { return __awaiter(void 
                     throw new Error('Failed to fetch incidents data');
                 }
                 incidents = incidentsData.incidents;
-                serviceQualityPercentage = calculateServiceQualityPercentage(incidents, periodStart * 1000, periodEnd * 1000, messengerPrecision);
+                serviceQualityPercentage = calculateServiceQualityPercentage(incidents, periodStart * 1000, periodEnd * 1000, messengerPrecision, slaData.component, slaData.impactCutoff);
                 res.send({
                     jobRunID: req.body.id,
                     data: { result: serviceQualityPercentage }

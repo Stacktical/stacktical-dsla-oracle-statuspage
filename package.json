@@ -1,7 +1,7 @@
 {
   "name": "stacktical-dsla-oracle-statuspage",
   "version": "1.0.0",
-  "description": "An OpenAI Public StatusPage Chainlink external adapter for DSLA Protocol.",
+  "description": "A Public StatusPage Chainlink external adapter for DSLA Protocol.",
   "main": "build/src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -28,7 +28,6 @@
   },
   "homepage": "https://github.com/stacktical/stacktical-dsla-oracle-statuspage#readme",
   "keywords": [
-    "openai",
     "dsla",
     "statuspage",
     "sla"

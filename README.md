@@ -1,5 +1,5 @@
 # stacktical-dsla-oracle-statuspage
-An OpenAI Public StatusPage Chainlink external adapter for DSLA Protocol.
+A Public StatusPage Chainlink external adapter for DSLA Protocol.
 
 ## Development
 

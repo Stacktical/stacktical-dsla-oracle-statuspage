@@ -45,6 +45,7 @@ const { error } = schema.validate(process.env);
 if (error) {
     throw new Error(`Configuration error: ${error.message}`);
 }
+const impacts = ['minor', 'major', 'critical'];
 async function getSLAData(address, networkName) {
     const networkURI = constants_1.NETWORKS[networkName];
     if (!networkURI) {
@@ -67,14 +68,16 @@ async function getMessengerPrecision(messengerAddress, networkName) {
     const messenger = new web3.eth.Contract(abis_1.MessengerABI, messengerAddress);
     return await messenger.methods.messengerPrecision().call();
 }
-const STATUSPAGE_API_BASE = 'https://status.openai.com/api/v2';
-function calculateServiceQualityPercentage(incidents, periodStart, periodEnd, precision) {
+function calculateServiceQualityPercentage(incidents, periodStart, periodEnd, precision, component, impactCutoff) {
     if (!Array.isArray(incidents)) {
         throw new Error('Incidents data is not an array');
     }
     let totalDowntimeMinutes = 0;
+    const minImpactIndex = impacts.indexOf(impactCutoff);
     incidents.forEach((incident) => {
-        if (incident.impact !== 'none') {
+        const isComponentInvolved = incident.components.some((comp) => component.map(c => c.toLowerCase()).includes(comp.name.toLowerCase()));
+        const incidentImpactIndex = impacts.indexOf(incident.impact);
+        if (isComponentInvolved && incidentImpactIndex >= minImpactIndex) {
             const incidentStart = Date.parse(incident.created_at);
             const incidentEnd = Date.parse(incident.resolved_at);
             if (incidentStart >= periodStart && incidentEnd <= periodEnd) {
@@ -106,13 +109,13 @@ exports['dsla-oracle-statuspage'] = async (req, res) => {
         };
         const slaData = await getSLAData(requestData.sla_address, requestData.network_name);
         const messengerPrecision = await getMessengerPrecision(slaData.messengerAddress, requestData.network_name);
-        const incidentsResponse = await axios_1.default.get(`${STATUSPAGE_API_BASE}/incidents.json`);
+        const incidentsResponse = await axios_1.default.get(`${slaData.statusPageUrl}/incidents.json`);
         const incidentsData = incidentsResponse.data;
         if (!incidentsData || incidentsResponse.status !== 200) {
             throw new Error('Failed to fetch incidents data');
         }
         const incidents = incidentsData.incidents;
-        const serviceQualityPercentage = calculateServiceQualityPercentage(incidents, periodStart * 1000, periodEnd * 1000, messengerPrecision);
+        const serviceQualityPercentage = calculateServiceQualityPercentage(incidents, periodStart * 1000, periodEnd * 1000, messengerPrecision, slaData.component, slaData.impactCutoff);
         res.send({
             jobRunID: req.body.id,
             data: { result: serviceQualityPercentage },
